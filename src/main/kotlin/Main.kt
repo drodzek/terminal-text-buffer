@@ -83,8 +83,7 @@ class TerminalBuffer (
         }
         else {
             // Cyclic buffer handling
-            val physicalTopIndex = topIndex
-            val rowScrollId = screenContent[physicalTopIndex]
+            val rowScrollId = screenContent[topIndex]
 
             val rowToHistory = rowScrollId.map { cell->
                 cell.copy(style = EnumSet.copyOf(cell.style))
@@ -189,5 +188,69 @@ class TerminalBuffer (
         newLine()
         cursorX = oldX.coerceIn(0, width - 1)
         cursorY = oldY.coerceIn(0, height - 1)
+    }
+
+    // ================================================
+    // Content Access
+    fun getCell(x: Int, y: Int): Cell? {
+        if (x < 0 || x >= width) {
+            return null
+        }
+        if (y >= height) {
+            return null
+        }
+        if (y < -scrollbackContent.size) {
+            return null
+        }
+
+        if (y >= 0) {
+            return screenContent[getPhysicalY(y)][x]
+        }
+        else {
+            val historicalIndex = scrollbackContent.size + y
+            return scrollbackContent[historicalIndex][x]
+        }
+    }
+
+    fun getCharacter(x: Int, y: Int): Char? {
+        return getCell(x, y)?.character
+    }
+
+    fun getAttribute(x: Int, y: Int): EnumSet<TerminalStyle>? {
+        return getCell(x,y)?.style?.let {
+            EnumSet.copyOf(it)
+        }
+    }
+
+    fun getLineAsString(y: Int): String {
+        val string = StringBuilder()
+        for (x in 0 until width) {
+            val char = getCharacter(x, y) ?: ' '
+            string.append(char)
+        }
+        return string.toString()
+    }
+
+    fun getScreenAsString(): String {
+        var result = StringBuilder()
+        for (i in 0 until height) {
+            result.append(getLineAsString(i))
+            if (i < height - 1) {
+                result.append("\n")
+            }
+        }
+        return result.toString()
+    }
+
+    fun getAllAsString(): String {
+        var result = StringBuilder()
+
+        val scrollbackSize = scrollbackContent.size
+        for (x in 0 until scrollbackSize) {
+            result.append(getLineAsString(x - scrollbackSize))
+            result.append("\n")
+        }
+        result.append(getScreenAsString())
+        return result.toString()
     }
 }
